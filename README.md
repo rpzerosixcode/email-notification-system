@@ -14,6 +14,15 @@ assíncrono de filas (Sidekiq sobre Redis) e uma interface web leve em Sinatra.
 
 ### A partir do código-fonte
 
+No Linux (Debian/Ubuntu), o Ruby e o Redis podem ser instalados pelo
+gerenciador de pacotes:
+
+```console
+$ sudo apt-get install ruby-full build-essential redis-server
+```
+
+Com o Ruby e o Bundler disponíveis:
+
 ```console
 $ git clone [URL do repositório]
 $ cd email-notification-system
@@ -27,6 +36,10 @@ $ cp .env.example .env
 ```
 
 No Windows PowerShell, use: `Copy-Item .env.example .env`.
+
+O `Gemfile.lock` é resolvido para Windows (`x64-mingw-ucrt`) e para Linux
+(`x86_64-linux` e `aarch64-linux`), permitindo implantar em servidores Linux
+sem regenerar o lock.
 
 ## Configuração
 
