@@ -1,0 +1,38 @@
+# Configuração do RuboCop para o email-notification-system.
+# Executar com: bundle exec rubocop
+
+plugins:
+  - rubocop-performance
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "Gemfile.lock"
+
+# O código do projeto usa aspas duplas.
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+# Limite de largura alinhado ao restante do código.
+Layout/LineLength:
+  Max: 100
+
+# Classes/módulos pequenos e sem documentação obrigatória.
+Style/Documentation:
+  Enabled: false
+
+# Métodos da lógica de negócio podem crescer um pouco.
+Metrics/MethodLength:
+  Max: 20
+
+Metrics/AbcSize:
+  Max: 20
+
+# Blocks longos em testes, tarefas Rake e rotas Sinatra são aceitáveis.
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "Rakefile"

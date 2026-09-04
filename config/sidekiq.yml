@@ -1,0 +1,16 @@
+# Configuração do servidor Sidekiq.
+# O CLI do Sidekiq carrega config/sidekiq.yml automaticamente.
+# Uso a partir da raiz do projeto: bundle exec sidekiq
+
+# Arquivo Ruby que carrega a aplicação (dependências e jobs).
+:require: ./config/environment.rb
+
+:verbose: false
+
+# Número de threads que processam jobs em paralelo.
+:concurrency: 5
+
+# Filas em ordem de prioridade (a primeira é a mais prioritária).
+:queues:
+  - notifications
+  - default
