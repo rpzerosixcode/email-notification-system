@@ -7,17 +7,20 @@
 `config.ru`, `app.rb`
 
 A aplicação é inicializada pelo Rack: `config.ru` carrega o `app.rb` e executa
-`App` (subclasse de `Sinatra::Base`). O servidor web é o Puma, subido com
+`App::Web` (subclasse de `Sinatra::Base`). O servidor web é o Puma, subido com
 `bundle exec rackup`.
 
 Responsável por:
 
 * Definir as rotas HTTP (`GET /` e `GET /health`).
+* Montar o controlador da API de notificações e o painel do Sidekiq
+  (`/sidekiq`, em `config.ru`).
 * Responder o status da aplicação em JSON no endpoint `/health`.
 
 ### Configuração do Ambiente
 
-`config/environment.rb`, `config/sidekiq.rb`, `config/sidekiq.yml`
+`config/environment.rb`, `config/sidekiq.rb`, `config/sidekiq.yml`,
+`config/mail.rb`
 
 Carrega as dependências (Bundler), as variáveis de ambiente (Dotenv, via
 `.env`) e configura a integração com o Redis e o Sidekiq.
@@ -28,20 +31,22 @@ Responsável por:
 * Configurar as conexões com o Redis (`REDIS_URL`), incluindo o `REDIS_CLIENT`
   para persistência de domínio e o servidor/cliente do Sidekiq.
 * Carregar automaticamente as camadas de aplicação em `app/`.
+* Configurar a gem `mail` para o envio de e-mails (`EMAIL_SENDER_MODE`, `SMTP_*`
+  e `MAIL_FROM`), com modo `test` que coleta as mensagens em memória.
 
-### Camadas de Aplicação (a implementar)
+### Camadas de Aplicação
 
 `app/models`, `app/services`, `app/mailers`, `app/workers`, `app/controllers`
 
-As pastas existem e são carregadas automaticamente por `config/environment.rb`,
-mas ainda estão vazias.
+As pastas são carregadas automaticamente por `config/environment.rb` e todas as
+camadas têm implementações.
 
 Responsável por:
 
 * `models` — representar o domínio (ex.: Notificação).
 * `services` — conter a lógica de negócio (ex.: orquestrar o envio de e-mail via SMTP).
-* `mailers` — compor as mensagens de e-mail (destinatário, assunto, corpo) com a
-  gem `mail`.
+* `mailers` — compor as mensagens de e-mail em texto simples (destinatário,
+  assunto, corpo) com a gem `mail`.
 * `workers` — processar jobs do Sidekiq na fila `notifications`.
 * `controllers` — receber requisições HTTP e orquestrar os serviços.
 
@@ -54,40 +59,37 @@ canal de entrega dos e-mails.
 
 ## Fluxo de Dados
 
-Estado atual (health check):
+Fluxo implementado:
 
 ```text
-[GET /health]
+[POST /notifications]
       |
-      +-- [app.rb / Sinatra] --> JSON de status
-```
+      +-- [Controlador] --> [Notificação no Redis: pending]
+      |                           |
+      |                           +-- [Sidekiq: fila notifications]
+      |                                     |
+      |                                     +-- [Worker] --> [Mailer] --> [EmailSender] --> [SMTP]
+      |                                           |                                           |
+      |                                           +-- falha --> [failed] + [retries]         +-- entrega --> [processed]
+      |
+      +-- [GET /notifications/:id] --> JSON com o estado atual
 
-Fluxo planejado:
-
-```text
-[Requisicao HTTP]
-      |
-      +-- [Controlador] --> [Servico] --> [SMTP] --> [Servidor de E-mail]
-      |                                             |
-      |                                             +-- falha --> [Erro/log]
-      |
-      +-- [Worker Sidekiq] --> [Redis: fila notifications]
-                                      |
-                                      +-- falha --> [Retries do Sidekiq]
+[GET /health] --> JSON de status
 ```
 
 ## Testes
 
-A suíte usa RSpec e a estrutura já está criada, embora as especificações ainda
-não estejam implementadas. Execução: `bundle exec rake` (suíte completa) ou
-`rake unit`, `rake integration` e `rake e2e` (por nível).
+A suíte usa RSpec com especificações nos três níveis e é hermética: o Redis é
+simulado (`FakeRedis`) e os e-mails são coletados em memória (modo `test` da
+gem Mail), sem nenhum serviço externo. Execução: `bundle exec rake` (suíte
+completa) ou `rake unit`, `rake integration` e `rake e2e` (por nível).
 
 | Caminho | Escopo |
 | --- | --- |
-| `spec/unit` | Modelos e serviços testados de forma isolada (dependências simuladas). |
-| `spec/integration` | Interação com o Redis e o SMTP, e as rotas Sinatra (via `rack-test`). |
-| `spec/e2e` | Fluxo completo da notificação, do disparo da requisição até a entrega do e-mail. |
-| `spec/support` | Arquivos de apoio compartilhados pelos testes, carregados automaticamente. |
+| `spec/unit` | Modelos, mailers, serviços e workers testados de forma isolada. |
+| `spec/integration` | Rotas Sinatra (via `rack-test`), com o Redis simulado. |
+| `spec/e2e` | Fluxo completo da notificação, do disparo HTTP à entrega do e-mail. |
+| `spec/support` | Arquivos de apoio compartilhados (ex.: `FakeRedis`), carregados automaticamente. |
 | `spec/fixtures` | Arquivos de dados de exemplo usados pelos testes. |
 
 O `spec/spec_helper.rb` define `APP_ENV=test` e carrega o ambiente por

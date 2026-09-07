@@ -2,6 +2,8 @@
 
 # Ambiente de teste isolado do ambiente de desenvolvimento.
 ENV["APP_ENV"] ||= "test"
+# E-mails não saem de verdade nos testes: a gem Mail coleta as mensagens em memória.
+ENV["EMAIL_SENDER_MODE"] ||= "test"
 
 require_relative "../config/environment"
 

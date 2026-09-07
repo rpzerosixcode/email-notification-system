@@ -57,6 +57,9 @@ Antes de usar a aplicação, defina as variáveis de ambiente necessárias:
 | `SMTP_ENABLE_STARTTLS` | Habilita ou desabilita STARTTLS (`true`/`false`). |
 | `SMTP_DOMAIN` | Domínio usado na conexão SMTP. |
 | `MAIL_FROM` | Remetente padrão dos e-mails. |
+| `SIDEKIQ_WEB_USERNAME` | Usuário do basic auth do painel do Sidekiq (opcional). |
+| `SIDEKIQ_WEB_PASSWORD` | Senha do basic auth do painel do Sidekiq (opcional). |
+| `SIDEKIQ_WEB_SECRET` | Segredo da sessão do painel do Sidekiq (opcional). |
 
 Um modelo preenchível está disponível em `.env.example`.
 
@@ -87,11 +90,34 @@ O Sidekiq carrega `config/sidekiq.yml` automaticamente, requisita
 `config/environment.rb` e processa as filas `notifications` e `default`
 com 5 threads de concorrência.
 
+### API de notificações
+
+Disparar uma notificação (o envio é processado em segundo plano pelo Sidekiq):
+
+```console
+$ curl -X POST http://localhost:9292/notifications \
+    -H "Content-Type: application/json" \
+    -d '{"to": "cliente@example.com", "subject": "Bem-vindo", "message": "Conta criada."}'
+```
+
+* `POST /notifications` — recebe `{ to, subject, message }`, persiste a
+  notificação e enfileira o processamento (`202 Accepted`).
+* `GET /notifications/:id` — retorna o estado da notificação (`pending`,
+  `processing`, `processed`, `failed`).
+
+### Painel do Sidekiq
+
+Com o servidor no ar, o painel fica em `http://localhost:9292/sidekiq`. Sem
+`SIDEKIQ_WEB_USERNAME` e `SIDEKIQ_WEB_PASSWORD`, ele só fica acessível em
+desenvolvimento; em produção, defina as credenciais (basic auth).
+
 ## Testes
 
-A estrutura de testes (RSpec) está preparada, mas as especificações ainda não
-foram implementadas. Os níveis de teste e a organização da suíte estão
-documentados em `docs/ARCHITECTURE.md`.
+A suíte usa RSpec com especificações nos três níveis e é hermética: o Redis é
+simulado (`FakeRedis`) e os e-mails são coletados em memória (modo `test` da
+gem Mail), sem nenhum serviço externo. Execução: `bundle exec rake` (suíte
+completa), `rake unit`, `rake integration` e `rake e2e` (por nível) e
+`bundle exec rubocop` (lint).
 
 ## Licença
 
